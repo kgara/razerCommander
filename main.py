@@ -11,6 +11,7 @@ try:
 except:
     print('ERROR: the daemon is not responding!\nTry running `killall razer-service && razer-service` or rebooting. If this doesn\'t work, please fill an issue!')
     exit(1)
+import argparse
 import custom_keyboard as CustomKb
 import custom_profiles
 import listboxHelper
@@ -128,8 +129,7 @@ class App(Gtk.Application):
     def __init__(self):
         Gtk.Application.__init__(self,
                                  application_id="org.gabmus.razercommander",
-                                 flags=Gio.ApplicationFlags.FLAGS_NONE)
-        self.connect("activate", self.activateCb)
+                                 flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE)
 
     def do_startup(self):
         # start the application
@@ -155,12 +155,40 @@ class App(Gtk.Application):
         window.show_all()
         keyboardBox.hide()
         updateDevicesConnected()
+        # Quit if we only need initialization
+        if self.args.quit_after_init:
+            self.quit()
 
-    def on_about_activate(self, *agrs):
+    def on_about_activate(self, *args):
         builder.get_object("aboutdialog").show()
 
     def on_quit_activate(self, *args):
         self.quit()
+
+    def do_activate(self):
+        '''
+        Gtk.Application activate handler
+        '''
+        #self.connect("activate", self.activateCb)
+        self.activateCb(app)
+
+    def do_command_line(self, args):
+        '''
+        Gtk.Application command line handler
+        called if Gio.ApplicationFlags.HANDLES_COMMAND_LINE is set.
+        must call the self.do_activate() to get the application up and running.
+        '''
+        Gtk.Application.do_command_line(self, args) # call the default commandline handler
+        # make a command line parser
+        parser = argparse.ArgumentParser(prog='gui')
+        # add a -c/--color option
+        parser.add_argument('-q', '--quit-after-init', dest='quit_after_init', action='store_true',
+            help='initialize application (e.g. for macros initialization on system startup) and quit')
+        # parse the command line stored in args, but skip the first element (the filename)
+        self.args = parser.parse_args(args.get_arguments()[1:])
+        # call the main program do_activate() to start up the app
+        self.do_activate()
+        return 0
 
 app=App()
 
